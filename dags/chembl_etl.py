@@ -13,7 +13,7 @@ with DAG(
         task_id="run_spark_etl",
         application="/opt/airflow/spark_jobs/chembl_etl_spark.py",
         conn_id="spark_default",
-        executor_memory="1g",
+        executor_memory="2g",
         total_executor_cores=4,
         name="chembl_etl",
         packages="org.postgresql:postgresql:42.7.3",

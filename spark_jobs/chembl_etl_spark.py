@@ -33,9 +33,9 @@ def run_etl():
     # Load tables as Spark DataFrames
     tables = [
         {"name": "activities", "column": "activity_id", "lowerBound": 1, "upperBound": 24267312, "numPartitions": 16},
-        {"name": "assays", "column": "assay_id", "lowerBound": 1, "upperBound": 1890749, "numPartitions": 16},
-        {"name": "compound_properties", "column": "molregno", "lowerBound": 1, "upperBound": 2858458, "numPartitions": 16},
-        {"name": "compound_structures", "column": "molregno", "lowerBound": 1, "upperBound": 2854815, "numPartitions": 16},
+        {"name": "assays", "column": "assay_id", "lowerBound": 1, "upperBound": 1890749, "numPartitions": 8},
+        {"name": "compound_properties", "column": "molregno", "lowerBound": 1, "upperBound": 2858458, "numPartitions": 8},
+        {"name": "compound_structures", "column": "molregno", "lowerBound": 1, "upperBound": 2854815, "numPartitions": 8},
     ]
 
     dfs = {}
@@ -56,7 +56,7 @@ def run_etl():
     # Select relevant rows from activities for activity model training (no missing / incomplete standard values)
     logger.info("Cleaning 'activities' table...")
 
-    activities_clean = dfs["activities"].filter(
+    activities_clean = dfs["activities"].filter( # assay type B F --> przyjrzeć się
         col("standard_value").isNotNull() &
         col("standard_units").isNotNull() &
         (col("standard_type") == "IC50")
@@ -131,7 +131,7 @@ def run_etl():
         "driver": "org.postgresql.Driver"
     }
 
-    joined_df = joined_df.repartition(16)  # adjust to cluster cores
+    joined_df = joined_df.repartition(16) 
 
     joined_df.write.mode("errorifexists").jdbc(
         url=target_jdbc_url,
