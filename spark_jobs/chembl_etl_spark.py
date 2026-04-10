@@ -1,4 +1,5 @@
 import logging
+import os
 
 from datetime import datetime, timezone
 from pyspark.sql import SparkSession
@@ -22,20 +23,30 @@ def add_prefix(df, prefix):
     return df
 
 
-def run_etl():   
+def run_etl():
     spark = SparkSession.builder.appName("ChEMBL ETL").getOrCreate()
     logger.info("Spark session started.")
 
-    # Connect to the db
-    jdbc_url = "jdbc:postgresql://host.docker.internal:5432/chembl"
-    properties = {"user": "postgres", "password": "password", "driver": "org.postgresql.Driver"}
+    # Connect to the db - load from environment variables
+    chembl_host = os.getenv("CHEMBL_DB_HOST", "host.docker.internal")
+    chembl_port = os.getenv("CHEMBL_DB_PORT", "5432")
+    chembl_db = os.getenv("CHEMBL_DB_NAME", "chembl")
+    chembl_user = os.getenv("CHEMBL_DB_USER", "postgres")
+    chembl_password = os.getenv("CHEMBL_DB_PASSWORD", "password")
+
+    jdbc_url = f"jdbc:postgresql://{chembl_host}:{chembl_port}/{chembl_db}"
+    properties = {"user": chembl_user, "password": chembl_password, "driver": "org.postgresql.Driver"}
 
     # Load tables as Spark DataFrames
+    num_partitions_activities = int(os.getenv("SPARK_NUMPARTITIONS_ACTIVITIES", "16"))
+    num_partitions_assays = int(os.getenv("SPARK_NUMPARTITIONS_ASSAYS", "8"))
+    num_partitions_compounds = int(os.getenv("SPARK_NUMPARTITIONS_COMPOUNDS", "8"))
+
     tables = [
-        {"name": "activities", "column": "activity_id", "lowerBound": 1, "upperBound": 24267312, "numPartitions": 16},
-        {"name": "assays", "column": "assay_id", "lowerBound": 1, "upperBound": 1890749, "numPartitions": 8},
-        {"name": "compound_properties", "column": "molregno", "lowerBound": 1, "upperBound": 2858458, "numPartitions": 8},
-        {"name": "compound_structures", "column": "molregno", "lowerBound": 1, "upperBound": 2854815, "numPartitions": 8},
+        {"name": "activities", "column": "activity_id", "lowerBound": 1, "upperBound": 24267312, "numPartitions": num_partitions_activities},
+        {"name": "assays", "column": "assay_id", "lowerBound": 1, "upperBound": 1890749, "numPartitions": num_partitions_assays},
+        {"name": "compound_properties", "column": "molregno", "lowerBound": 1, "upperBound": 2858458, "numPartitions": num_partitions_compounds},
+        {"name": "compound_structures", "column": "molregno", "lowerBound": 1, "upperBound": 2854815, "numPartitions": num_partitions_compounds},
     ]
 
     dfs = {}
@@ -124,14 +135,22 @@ def run_etl():
     version = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     target_table = f"activity_features_v{version}"
 
-    target_jdbc_url = "jdbc:postgresql://host.docker.internal:5432/chembl_features"
+    # Load target database configuration from environment variables
+    features_host = os.getenv("CHEMBL_FEATURES_DB_HOST", "host.docker.internal")
+    features_port = os.getenv("CHEMBL_FEATURES_DB_PORT", "5432")
+    features_db = os.getenv("CHEMBL_FEATURES_DB_NAME", "chembl_features")
+    features_user = os.getenv("CHEMBL_FEATURES_DB_USER", "postgres")
+    features_password = os.getenv("CHEMBL_FEATURES_DB_PASSWORD", "password")
+
+    target_jdbc_url = f"jdbc:postgresql://{features_host}:{features_port}/{features_db}"
     target_properties = {
-        "user": "postgres",
-        "password": "password",
+        "user": features_user,
+        "password": features_password,
         "driver": "org.postgresql.Driver"
     }
 
-    joined_df = joined_df.repartition(16) 
+    repartition_size = int(os.getenv("SPARK_REPARTITION_SIZE", "16"))
+    joined_df = joined_df.repartition(repartition_size) 
 
     joined_df.write.mode("errorifexists").jdbc(
         url=target_jdbc_url,
