@@ -14,7 +14,9 @@ services:
       - SPARK_RPC_MESSAGE_MAXSIZE=${SPARK_RPC_MESSAGE_MAXSIZE}
       - SPARK_DRIVER_MAXRESULTSIZE=${SPARK_DRIVER_MAXRESULTSIZE}
     volumes:
-      - ${SPARK_JOBS_PATH}:/opt/spark/spark_jobs
+      - ${SPARK_JOBS_PATH}:/opt/spark/jobs
+      - ${DATA_CLEANED_PATH}:/data/cleaned
+      - ${DATA_TRAINING_PATH}:/data/training
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
     hostname: spark-master
     networks:
@@ -29,6 +31,9 @@ services:
       - SPARK_WORKER_MEMORY=${SPARK_WORKER_MEMORY}
       - SPARK_WORKER_CORES=${SPARK_WORKER_CORES}
       - SPARK_RPC_MESSAGE_MAXSIZE=${SPARK_RPC_MESSAGE_MAXSIZE}
+    volumes:
+      - ${DATA_CLEANED_PATH}:/data/cleaned
+      - ${DATA_TRAINING_PATH}:/data/training
     depends_on:
       - spark-master
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
@@ -45,6 +50,9 @@ services:
       - SPARK_WORKER_MEMORY=${SPARK_WORKER_MEMORY}
       - SPARK_WORKER_CORES=${SPARK_WORKER_CORES}
       - SPARK_RPC_MESSAGE_MAXSIZE=${SPARK_RPC_MESSAGE_MAXSIZE}
+    volumes:
+      - ${DATA_CLEANED_PATH}:/data/cleaned
+      - ${DATA_TRAINING_PATH}:/data/training
     depends_on:
       - spark-master
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
@@ -55,7 +63,9 @@ services:
 
   airflow:
     image: apache/airflow:3.0.1
-    build: .
+    build:
+      context: ./airflow
+      dockerfile: Dockerfile
     container_name: airflow-standalone
     env_file:
       - .env
@@ -71,8 +81,10 @@ services:
     ports:
       - "${AIRFLOW_WEB_PORT}:8080"
     volumes:
-      - ${DAGS_PATH}:/opt/airflow/dags
+      - ${AIRFLOW_DAGS_PATH}:/opt/airflow/dags
       - ${SPARK_JOBS_PATH}:/opt/airflow/spark_jobs
+      - ${DATA_CLEANED_PATH}:/data/cleaned
+      - ${DATA_TRAINING_PATH}:/data/training
     command: bash -c "airflow db migrate && airflow users create --username ${AIRFLOW_ADMIN_USERNAME} --password ${AIRFLOW_ADMIN_PASSWORD} --firstname ${AIRFLOW_ADMIN_FIRSTNAME} --lastname ${AIRFLOW_ADMIN_LASTNAME} --role Admin --email ${AIRFLOW_ADMIN_EMAIL} && airflow webserver & airflow scheduler"
     depends_on:
       - spark-master
