@@ -1,7 +1,9 @@
 import logging
 import os
+
+from datetime import datetime
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, log10
+from pyspark.sql.functions import col, log10, when, lit
 
 logging.basicConfig(
     level=logging.INFO,
@@ -43,45 +45,59 @@ def run_cleaning():
 
     # Select relevant columns
     df = df.select(
-        "activity_id",
-        "assay_id",
-        "molregno",
-        "standard_value",
-        "standard_units",
-        "standard_type",
-        "standard_relation",
-        "data_validity_comment",
-        "potential_duplicate"
+        col("activity_id").cast("int"),
+        col("assay_id").cast("int"),
+        col("molregno").cast("int"),
+        col("standard_value").cast("float"),
+        col("standard_units").cast("string"),
+        col("standard_type").cast("string"),
+        col("standard_relation").cast("string"),
+        col("pchembl_value").cast("float"),
+        col("data_validity_comment").cast("string"),
+        col("potential_duplicate").cast("string")
     )
 
-    # Clean data - remove nulls and filter for IC50
+    # Clean data
     logger.info("Cleaning activities data...")
+
+    # Remove nulls and filter for IC50
     df_clean = df.filter(
         col("standard_value").isNotNull() &
-        col("standard_units").isNotNull() &
-        (col("standard_type") == "IC50") &
-        (col("data_validity_comment").isNull())  # Only valid data
+        (col("potential_duplicate").isNull() | (col("potential_duplicate") == 0))
     )
 
-    # Remove duplicates based on activity_id
-    df_clean = df_clean.dropDuplicates(["activity_id"])
+    # Convert data_validity_comment to binary numeric flag: 1 if not null, 0 if null
+    df_clean = df_clean.withColumn(
+        "data_validity_comment",
+        when(col("data_validity_comment").isNotNull(), lit(1)).otherwise(lit(0)).cast("int")
+    )
 
-    # Calculate pIC50 (-log10 of IC50 in nM)
+    # Impute missing nM units for values
+    mask_missing = col("standard_units").isNull() & col("standard_value").isNotNull()
+    mask_range = (col("standard_value") >= 0.01) & (col("standard_value") <= 1e6)
+    df_clean = df_clean.withColumn(
+        "standard_units",
+        when(mask_missing & mask_range, lit("nM")).otherwise(col("standard_units"))
+    )
+
+    # Compute pIC50 for nM like:
     df_clean = df_clean.withColumn(
         "pIC50",
-        -log10(col("standard_value") / 1e9)  # Convert nM to M then -log10
+        when(
+            (col("standard_units") == "nM") & col("standard_value").isNotNull(),
+            -log10(col("standard_value") * 1e-9)
+        ).otherwise(col("pchembl_value"))
     )
 
     logger.info(f"Activities cleaned: {df_clean.count()} rows remaining")
 
-    # Save as Parquet
+    # Save as Parquet with timestamp 
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_path = os.getenv("DATA_CLEANED_PATH", "./data/cleaned")
-    df_clean.write.parquet(
-        f"{output_path}/activities_clean.parquet",
-        mode="overwrite"
-    )
-
-    logger.info("Activities cleaning completed and saved to Parquet!")
+    output_file = f"{output_path}/activities_clean_{timestamp}.parquet"
+ 
+    df_clean.write.parquet(output_file, mode="errorifexists")
+    logger.info(f"Activities cleaning completed and saved to: {output_file}")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
 import logging
 import os
+
+from datetime import datetime
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 
@@ -43,8 +45,8 @@ def run_cleaning():
 
     # Select relevant columns
     df = df.select(
-        "molregno",
-        "canonical_smiles"
+        col("molregno").cast("int"),
+        col("canonical_smiles").cast("string")
     )
 
     # Clean data - remove compounds without SMILES
@@ -54,19 +56,15 @@ def run_cleaning():
         (col("canonical_smiles") != "")
     )
 
-    # Remove duplicates - keep first entry per SMILES (same molecule, different molregno)
-    df_clean = df_clean.dropDuplicates(["canonical_smiles"])
-
     logger.info(f"Compound structures cleaned: {df_clean.count()} rows remaining")
 
-    # Save as Parquet
+    # Save as Parquet with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_path = os.getenv("DATA_CLEANED_PATH", "./data/cleaned")
-    df_clean.write.parquet(
-        f"{output_path}/compound_structures_clean.parquet",
-        mode="overwrite"
-    )
+    output_file = f"{output_path}/compound_structures_clean_{timestamp}.parquet"
 
-    logger.info("Compound structures cleaning completed and saved to Parquet!")
+    df_clean.write.parquet(output_file, mode="errorifexists")
+    logger.info(f"Compound structures cleaning completed and saved to: {output_file}")
 
 
 if __name__ == "__main__":

@@ -1,95 +1,88 @@
+version: '3.8'
 services:
-
   spark-master:
-    image: apache/spark:3.5.7
+    image: apache/spark:latest
     container_name: spark-master
-    env_file:
-      - .env
     ports:
-      - '${SPARK_MASTER_UI_PORT}:8080'
-      - '${SPARK_MASTER_PORT}:7077'
-    environment:
-      - SPARK_MASTER_HOST=${SPARK_MASTER_HOST}
-      - SPARK_DRIVER_MEMORY=${SPARK_DRIVER_MEMORY}
-      - SPARK_RPC_MESSAGE_MAXSIZE=${SPARK_RPC_MESSAGE_MAXSIZE}
-      - SPARK_DRIVER_MAXRESULTSIZE=${SPARK_DRIVER_MAXRESULTSIZE}
-    volumes:
-      - ${SPARK_JOBS_PATH}:/opt/spark/jobs
-      - ${DATA_CLEANED_PATH}:/data/cleaned
-      - ${DATA_TRAINING_PATH}:/data/training
+      - '8080:8080'
+      - '7077:7077'
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
     hostname: spark-master
+    volumes:
+      - ./spark/jobs:/opt/spark/work-dir/jobs
     networks:
       - spark-net
 
   spark-worker-1:
-    image: apache/spark:3.5.7
+    image: apache/spark:latest
     container_name: spark-worker-1
-    env_file:
-      - .env
     environment:
-      - SPARK_WORKER_MEMORY=${SPARK_WORKER_MEMORY}
-      - SPARK_WORKER_CORES=${SPARK_WORKER_CORES}
-      - SPARK_RPC_MESSAGE_MAXSIZE=${SPARK_RPC_MESSAGE_MAXSIZE}
-    volumes:
-      - ${DATA_CLEANED_PATH}:/data/cleaned
-      - ${DATA_TRAINING_PATH}:/data/training
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
     depends_on:
       - spark-master
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     hostname: spark-worker-1
+    volumes:
+      - ./spark/jobs:/opt/spark/work-dir/jobs
     networks:
       - spark-net
 
   spark-worker-2:
-    image: apache/spark:3.5.7
+    image: apache/spark:latest
     container_name: spark-worker-2
-    env_file:
-      - .env
     environment:
-      - SPARK_WORKER_MEMORY=${SPARK_WORKER_MEMORY}
-      - SPARK_WORKER_CORES=${SPARK_WORKER_CORES}
-      - SPARK_RPC_MESSAGE_MAXSIZE=${SPARK_RPC_MESSAGE_MAXSIZE}
-    volumes:
-      - ${DATA_CLEANED_PATH}:/data/cleaned
-      - ${DATA_TRAINING_PATH}:/data/training
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
     depends_on:
       - spark-master
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     hostname: spark-worker-2
+    volumes:
+      - ./spark/jobs:/opt/spark/work-dir/jobs
     networks:
       - spark-net
 
-
-  airflow:
-    image: apache/airflow:3.0.1
-    build:
-      context: ./airflow
-      dockerfile: Dockerfile
-    container_name: airflow-standalone
-    env_file:
-      - .env
+  spark-worker-3:
+    image: apache/spark:latest
+    container_name: spark-worker-3
     environment:
-      - AIRFLOW__CORE__EXECUTOR=${AIRFLOW_EXECUTOR}
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-      - AIRFLOW__CORE__LOAD_EXAMPLES=${AIRFLOW_LOAD_EXAMPLES}
-      - _AIRFLOW_DB_UPGRADE=true
-      - _AIRFLOW_WWW_USER_CREATE=true
-      - _AIRFLOW_WWW_USER_USERNAME=${AIRFLOW_ADMIN_USERNAME}
-      - _AIRFLOW_WWW_USER_PASSWORD=${AIRFLOW_ADMIN_PASSWORD}
-      - PYTHONPATH=/opt/airflow
-    ports:
-      - "${AIRFLOW_WEB_PORT}:8080"
-    volumes:
-      - ${AIRFLOW_DAGS_PATH}:/opt/airflow/dags
-      - ${SPARK_JOBS_PATH}:/opt/airflow/spark_jobs
-      - ${DATA_CLEANED_PATH}:/data/cleaned
-      - ${DATA_TRAINING_PATH}:/data/training
-    command: bash -c "airflow db migrate && airflow users create --username ${AIRFLOW_ADMIN_USERNAME} --password ${AIRFLOW_ADMIN_PASSWORD} --firstname ${AIRFLOW_ADMIN_FIRSTNAME} --lastname ${AIRFLOW_ADMIN_LASTNAME} --role Admin --email ${AIRFLOW_ADMIN_EMAIL} && airflow webserver & airflow scheduler"
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
     depends_on:
       - spark-master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    hostname: spark-worker-3
+    volumes:
+      - ./spark/jobs:/opt/spark/work-dir/jobs
     networks:
       - spark-net
+
+  airflow:
+    image: apache/airflow:2.7.1
+    container_name: airflow-standalone
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=SequentialExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/airflow.db
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - _AIRFLOW_DB_MIGRATE=true
+      - _AIRFLOW_WWW_USER_CREATE=true
+      - _AIRFLOW_WWW_USER_USERNAME=admin
+      - _AIRFLOW_WWW_USER_PASSWORD=admin
+    ports:
+      - "8081:8080"
+    command: bash -c "airflow db migrate && airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com 2>/dev/null || true && airflow webserver -p 8080 & airflow scheduler"
+    depends_on:
+      - spark-master
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+    networks:
+      - spark-net
+
+volumes:
+  airflow_db:
 
 networks:
   spark-net:

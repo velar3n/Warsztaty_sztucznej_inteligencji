@@ -1,5 +1,7 @@
 import logging
 import os
+
+from datetime import datetime
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 
@@ -43,42 +45,26 @@ def run_cleaning():
 
     # Select relevant columns for ML features
     df = df.select(
-        "molregno",
-        "mw_freebase",         # Molecular weight
-        "alogp",               # LogP (lipophilicity)
-        "hba",                 # H-bond acceptors
-        "hbd",                 # H-bond donors
-        "psa",                 # Polar surface area
-        "rtb",                 # Rotatable bonds
-        "ro3_pass",            # Rule of 3
-        "num_ro5_violations",  # Lipinski violations
-        "aromatic_rings",
-        "heavy_atoms",
-        "num_alerts"           # Structural alerts
+        col("molregno").cast("int"),
+        col("mw_freebase").cast("float"),
+        col("alogp").cast("float"),
+        col("hba").cast("int"),
+        col("hbd").cast("int"),
+        col("psa").cast("float"),
+        col("rtb").cast("int"),
+        col("aromatic_rings").cast("int"),
     )
 
-    # Clean data - remove compounds with missing critical properties
-    logger.info("Cleaning compound properties data...")
-    df_clean = df.filter(
-        col("mw_freebase").isNotNull() &
-        col("alogp").isNotNull() &
-        col("hba").isNotNull() &
-        col("hbd").isNotNull()
-    )
 
-    # Remove duplicates based on molregno
-    df_clean = df_clean.dropDuplicates(["molregno"])
+    logger.info(f"Compound properties cleaned: {df.count()} rows remaining")
 
-    logger.info(f"Compound properties cleaned: {df_clean.count()} rows remaining")
-
-    # Save as Parquet
+    # Save as Parquet with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_path = os.getenv("DATA_CLEANED_PATH", "./data/cleaned")
-    df_clean.write.parquet(
-        f"{output_path}/compound_properties_clean.parquet",
-        mode="overwrite"
-    )
+    output_file = f"{output_path}/compound_properties_clean_{timestamp}.parquet"
 
-    logger.info("Compound properties cleaning completed and saved to Parquet!")
+    df.write.parquet(output_file, mode="errorifexists")
+    logger.info(f"Compound properties cleaning completed and saved to: {output_file}")
 
 
 if __name__ == "__main__":

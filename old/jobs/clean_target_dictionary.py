@@ -1,7 +1,9 @@
 import logging
 import os
+
+from datetime import datetime
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, lower
 
 logging.basicConfig(
     level=logging.INFO,
@@ -36,33 +38,28 @@ def run_cleaning():
 
     # Select relevant columns
     df = df.select(
-        "tid",
-        "target_type",
-        "pref_name",
-        "organism",
-        "tax_id"
+        col("tid").cast("int"),
+        col("chembl_id").cast("string"),
+        col("pref_name").cast("string"),
+        col("organism").cast("string"),
     )
 
     # Clean data - keep only relevant target types
     logger.info("Cleaning target dictionary data...")
     df_clean = df.filter(
-        col("target_type").isin(["SINGLE PROTEIN", "PROTEIN COMPLEX", "PROTEIN FAMILY"]) &
         col("pref_name").isNotNull()
     )
 
-    # Remove duplicates based on tid
-    df_clean = df_clean.dropDuplicates(["tid"])
+    # Normalise organism to lowercase
+    df_clean = df_clean.withColumn("organism", lower(col("organism")))
 
-    logger.info(f"Target dictionary cleaned: {df_clean.count()} rows remaining")
-
-    # Save as Parquet
+    # Save as Parquet with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_path = os.getenv("DATA_CLEANED_PATH", "./data/cleaned")
-    df_clean.write.parquet(
-        f"{output_path}/target_dictionary_clean.parquet",
-        mode="overwrite"
-    )
-
-    logger.info("Target dictionary cleaning completed and saved to Parquet!")
+    output_file = f"{output_path}/target_dictionary_clean_{timestamp}.parquet"
+ 
+    df_clean.write.parquet(output_file, mode="errorifexists")
+    logger.info(f"Target dictionary cleaning completed and saved to: {output_file}")
 
 
 if __name__ == "__main__":

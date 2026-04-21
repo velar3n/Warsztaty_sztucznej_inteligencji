@@ -1,5 +1,7 @@
 import logging
 import os
+
+from datetimeq import datetime
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 
@@ -43,36 +45,24 @@ def run_cleaning():
 
     # Select relevant columns
     df = df.select(
-        "assay_id",
-        "assay_type",
-        "assay_organism",
-        "assay_tissue",
-        "assay_cell_type",
-        "assay_subcellular_fraction",
-        "tid",  # target_id
-        "confidence_score"
+        col("assay_id").cast("int"),
+        col("assay_type").cast("string"),
+        col("assay_organism").cast("string"),
+        col("tissue_id").cast("int"),
+        col("cell_id").cast("int"),
+        col("tid").cast("int"),
+        col("confidence_score").cast("int")
     )
 
-    # Clean data - filter for high confidence assays
-    logger.info("Cleaning assays data...")
-    df_clean = df.filter(
-        col("confidence_score").isNotNull() &
-        (col("confidence_score") >= 7)  # Only high confidence assays
-    )
+    logger.info(f"Assays cleaned: {df.count()} rows remaining")
 
-    # Remove duplicates based on assay_id
-    df_clean = df_clean.dropDuplicates(["assay_id"])
-
-    logger.info(f"Assays cleaned: {df_clean.count()} rows remaining")
-
-    # Save as Parquet
+    # Save as Parquet with timestamp 
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_path = os.getenv("DATA_CLEANED_PATH", "./data/cleaned")
-    df_clean.write.parquet(
-        f"{output_path}/assays_clean.parquet",
-        mode="overwrite"
-    )
+    output_file = f"{output_path}/assays_clean_{timestamp}.parquet"
 
-    logger.info("Assays cleaning completed and saved to Parquet!")
+    df.write.parquet(output_file, mode="errorifexists")
+    logger.info(f"Assays cleaning completed and saved to: {output_file}")
 
 
 if __name__ == "__main__":
