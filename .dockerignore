@@ -1,0 +1,83 @@
+# =====================
+# Python .dockerignore
+# =====================
+
+# --- Git ---
+.git
+.gitignore
+.gitattributes
+
+# --- Virtual Environments ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Python Cache ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Distribution / Build ---
+build/
+dist/
+*.egg-info/
+*.egg
+
+# --- Testing ---
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+tests/
+
+# --- IDE / Editors ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- OS Files ---
+.DS_Store
+Thumbs.db
+
+# --- Docker (avoid recursive builds) ---
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# --- Documentation ---
+docs/
+*.md
+!README.md
+LICENSE
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Environment Variables ---
+.env
+.env.*
+!.env.example
+
+# --- CI/CD ---
+.github/
+.gitlab-ci.yml
+.circleci/
+
+# --- Mypy / Ruff ---
+.mypy_cache/
+.ruff_cache/
+
+# --- Jupyter Notebooks ---
+.ipynb_checkpoints/
+*.ipynb
+
+# --- Secrets ---
+*.pem
+*.key
+*.crt
+secrets/
