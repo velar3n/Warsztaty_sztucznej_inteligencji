@@ -32,6 +32,7 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
     - ./spark/jobs:/opt/spark/jobs
     - ./spark/data:/opt/spark/data
+    - ./utils:/opt/spark/utils
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -222,6 +223,7 @@ services:
     volumes:
       - ./spark/jobs:/opt/spark/jobs
       - ./spark/data:/opt/spark/data
+      - ./utils:/opt/spark/utils
     restart: always
 
   spark-worker-1:
@@ -237,6 +239,7 @@ services:
     volumes:
       - ./spark/jobs:/opt/spark/jobs
       - ./spark/data:/opt/spark/data
+      - ./utils:/opt/spark/utils
     depends_on:
       - spark-master
     restart: always
@@ -254,6 +257,7 @@ services:
     volumes:
       - ./spark/jobs:/opt/spark/jobs
       - ./spark/data:/opt/spark/data
+      - ./utils:/opt/spark/utils
     depends_on:
       - spark-master
     restart: always
