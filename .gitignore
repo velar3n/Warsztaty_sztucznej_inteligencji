@@ -81,3 +81,7 @@ secrets/
 
 # --- Airflow ---
 airflow/logs/*
+
+inspire/*
+.*/
+data/*

@@ -50,7 +50,7 @@ def run_cleaning():
     # Save as Parquet
     output_path = os.getenv("DATA_CLEANED_PATH", "./data/cleaned")
     df.write.parquet(
-        f"{output_path}/compound_properties_clean.parquet",
+        "/opt/spark/data/cleaned/compound_properties_clean.parquet",
         mode="overwrite"
     )
 

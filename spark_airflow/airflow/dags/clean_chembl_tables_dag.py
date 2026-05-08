@@ -61,7 +61,7 @@ load_compound_properties = SparkSubmitOperator(
     env_vars=env_vars,
     dag=dag,
 )
-
+"""
 load_compound_structures = SparkSubmitOperator(
     task_id='load_compound_structures',
     application='/opt/spark/jobs/load_compound_structures.py',
@@ -113,7 +113,8 @@ verify_outputs = BashOperator(
     task_id='verify_all_outputs',
     bash_command='ls -lh /opt/spark/data/cleaned/chembl_joined.parquet && echo "ChEMBL tables joined successfully!"',
     dag=dag,
-)
+)"""
 
 # Set dependencies - check spark, parallel loading, then join, copy final output to Windows mount, then verify
-check_spark >> [load_compound_properties, load_compound_structures, load_target_dictionary, load_assays, load_activities] >> join_all_tables >> verify_outputs
+# check_spark >> [load_compound_properties, load_compound_structures, load_target_dictionary, load_assays, load_activities] >> join_all_tables >> verify_outputs
+check_spark >> load_compound_properties
