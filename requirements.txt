@@ -5,4 +5,11 @@ pytest
 rdkit
 torch
 torch-geometric
-numpy
+
+# LLM related dependencies
+langgraph
+langchain-ollama
+langchain-core
+langchain-community
+streamlit
+Pillow
