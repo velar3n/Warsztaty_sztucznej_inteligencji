@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import sys
 import time
 import logging
@@ -8,16 +7,6 @@ import pyarrow.parquet as pq
 
 from pathlib import Path
 from datetime import datetime
-=======
-import logging
-from pathlib import Path
-from datetime import datetime
-import numpy as np
-import pandas as pd
-import pyarrow.parquet as pq
-import sys
-import time
->>>>>>> 3cb3798 (Data loading - normal and alzheimer)
 from rdkit import Chem
 from rdkit.Chem import rdFingerprintGenerator
 
@@ -30,11 +19,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-<<<<<<< HEAD
 # Initialize fingerprint generator (radius=2, 2048 bits) - internet sais it's a solid default :>
-=======
-# Initialize fingerprint generator (radius=2, 2048 bits)
->>>>>>> 3cb3798 (Data loading - normal and alzheimer)
 mfp_gen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
 
 
@@ -46,18 +31,12 @@ def find_latest_source_file(data_dir: Path) -> Path:
     return files[0]
 
 
-<<<<<<< HEAD
 # We can't feed strings to the model, makes no sense, so we transform the SMILES into numerical vectors (fingerprints)
-=======
->>>>>>> 3cb3798 (Data loading - normal and alzheimer)
 def smiles_to_fingerprint(smiles: str) -> np.ndarray | None:
     if not smiles:
         return None
 
-<<<<<<< HEAD
     # SMILES -> RDKit molecule -> Fingerprint -> np array for smarter saving
-=======
->>>>>>> 3cb3798 (Data loading - normal and alzheimer)
     try:
         mol = Chem.MolFromSmiles(smiles)
         if mol is None:

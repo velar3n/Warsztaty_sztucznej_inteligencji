@@ -1,5 +1,4 @@
 import logging
-<<<<<<< HEAD
 import sys
 import time
 import torch
@@ -8,15 +7,6 @@ import pyarrow.parquet as pq
 
 from pathlib import Path
 from datetime import datetime
-=======
-from pathlib import Path
-from datetime import datetime
-import sys
-import time
-import pandas as pd
-import pyarrow.parquet as pq
-import torch
->>>>>>> 3cb3798 (Data loading - normal and alzheimer)
 from torch_geometric.data import Data
 from rdkit import Chem
 from rdkit.Chem import rdchem
@@ -32,7 +22,6 @@ logger = logging.getLogger(__name__)
 
 # Encoding constants
 ATOMIC_NUM_LIST = [1, 5, 6, 7, 8, 9, 14, 15, 16, 17, 34, 35, 53]
-# H, B, C, N, O, F, Si, P, S, Cl, Se, Br, I
 
 HYBRIDIZATION_TYPES = [
     rdchem.HybridizationType.SP,
@@ -65,33 +54,10 @@ CHIRAL_TAGS = [
 
 
 def one_hot_encode(value, categories: list) -> list[int]:
-<<<<<<< HEAD
-=======
-    """Create one-hot encoding for a value within categories.
-
-    Args:
-        value: Value to encode
-        categories: List of possible categories
-
-    Returns:
-        List of 0s and 1s (1 at position if value in categories, else all 0s)
-    """
->>>>>>> 3cb3798 (Data loading - normal and alzheimer)
     return [1 if value == cat else 0 for cat in categories]
 
 
 def extract_node_features(mol: Chem.Mol) -> list[list[float]] | None:
-<<<<<<< HEAD
-=======
-    """Extract node features for all atoms in molecule.
-
-    Args:
-        mol: RDKit Mol object
-
-    Returns:
-        List of feature vectors (one per atom), or None if extraction fails
-    """
->>>>>>> 3cb3798 (Data loading - normal and alzheimer)
     node_features = []
 
     for atom in mol.GetAtoms():
@@ -138,19 +104,6 @@ def extract_node_features(mol: Chem.Mol) -> list[list[float]] | None:
 
 
 def extract_edge_features(mol: Chem.Mol) -> tuple[list[list[int]], list[list[float]]]:
-<<<<<<< HEAD
-=======
-    """Extract edge index and edge features for all bonds.
-
-    Args:
-        mol: RDKit Mol object
-
-    Returns:
-        Tuple of (edge_index, edge_features) where:
-        - edge_index: list of [source, target] pairs (bidirectional)
-        - edge_features: list of feature vectors (one per edge)
-    """
->>>>>>> 3cb3798 (Data loading - normal and alzheimer)
     edge_index = []
     edge_features = []
 
@@ -158,21 +111,21 @@ def extract_edge_features(mol: Chem.Mol) -> tuple[list[list[int]], list[list[flo
         u = bond.GetBeginAtomIdx()
         v = bond.GetEndAtomIdx()
 
-        # Bond type one-hot (4 dimensions)
+        # Bond type one-hot 
         bond_type = bond.GetBondType()
         if bond_type not in BOND_TYPES:
             one_hot_bond = [0] * len(BOND_TYPES)
         else:
             one_hot_bond = one_hot_encode(bond_type, BOND_TYPES)
 
-        # Stereo one-hot (5 dimensions)
+        # Stereo one-hot
         stereo = bond.GetStereo()
         if stereo not in BOND_STEREO_TYPES:
             one_hot_stereo = [0] * len(BOND_STEREO_TYPES)
         else:
             one_hot_stereo = one_hot_encode(stereo, BOND_STEREO_TYPES)
 
-        # Additional features (2 dimensions)
+        # Additional features
         is_conjugated = float(bond.GetIsConjugated())
         is_in_ring = float(bond.IsInRing())
 
@@ -189,19 +142,6 @@ def extract_edge_features(mol: Chem.Mol) -> tuple[list[list[int]], list[list[flo
 
 
 def smiles_to_graph(smiles: str, activity_id: int, pic50: float) -> Data | None:
-<<<<<<< HEAD
-=======
-    """Convert SMILES string to PyTorch Geometric Data object.
-
-    Args:
-        smiles: SMILES string representing a molecule
-        activity_id: Activity ID from source data
-        pic50: pIC50 target value
-
-    Returns:
-        PyG Data object or None if conversion fails
-    """
->>>>>>> 3cb3798 (Data loading - normal and alzheimer)
     if not smiles:
         return None
 
@@ -248,17 +188,6 @@ def smiles_to_graph(smiles: str, activity_id: int, pic50: float) -> Data | None:
 
 
 def process_chunk(chunk: pd.DataFrame) -> tuple[list[Data], int]:
-<<<<<<< HEAD
-=======
-    """Transform a chunk of data to graphs.
-
-    Args:
-        chunk: DataFrame with columns ['activity_id', 'canonical_smiles', 'pic50']
-
-    Returns:
-        Tuple of (list of Data objects, number of failures)
-    """
->>>>>>> 3cb3798 (Data loading - normal and alzheimer)
     graphs = []
     num_failed = 0
 
@@ -279,10 +208,6 @@ def process_chunk(chunk: pd.DataFrame) -> tuple[list[Data], int]:
 
 
 def find_latest_source_file(data_dir: Path) -> Path:
-<<<<<<< HEAD
-=======
-    """Find most recent chembl_joined_*.parquet file by timestamp in filename."""
->>>>>>> 3cb3798 (Data loading - normal and alzheimer)
     pattern = "chembl_joined_*.parquet"
     files = sorted(data_dir.glob(pattern), reverse=True)
     if not files:
@@ -291,10 +216,6 @@ def find_latest_source_file(data_dir: Path) -> Path:
 
 
 def main():
-<<<<<<< HEAD
-=======
-    """Main execution function for GNN data preparation."""
->>>>>>> 3cb3798 (Data loading - normal and alzheimer)
     start_time = time.time()
 
     # Setup paths
@@ -357,7 +278,7 @@ def main():
                 temp_path = output_path.with_suffix('.tmp')
 
                 logger.info(f"Saving batch {batch_num}: {len(batch_graphs):,} graphs to {output_filename}...")
-                torch.save(batch_graphs, temp_path)
+                torch.save(batch_graphs, temp_path, pickle_protocol=4)
                 temp_path.rename(output_path)
 
                 output_files.append(output_path)
@@ -376,7 +297,7 @@ def main():
             temp_path = output_path.with_suffix('.tmp')
 
             logger.info(f"Saving final batch {batch_num}: {len(batch_graphs):,} graphs to {output_filename}...")
-            torch.save(batch_graphs, temp_path)
+            torch.save(batch_graphs, temp_path, pickle_protocol=4)
             temp_path.rename(output_path)
 
             output_files.append(output_path)
@@ -388,10 +309,6 @@ def main():
         avg_nodes = total_nodes / total_graphs if total_graphs else 0
         avg_edges = total_edges / total_graphs if total_graphs else 0
 
-<<<<<<< HEAD
-=======
-        logger.info("=" * 60)
->>>>>>> 3cb3798 (Data loading - normal and alzheimer)
         logger.info("GNN Data Preparation Complete")
         logger.info(f"Total rows processed: {total_rows:,}")
         logger.info(f"Successful transformations: {total_graphs:,}")
@@ -403,10 +320,6 @@ def main():
         logger.info(f"Output files: {', '.join(f.name for f in output_files)}")
         logger.info(f"Total output size: {total_size_gb:.2f} GB")
         logger.info(f"Elapsed time: {elapsed_time/60:.2f} minutes")
-<<<<<<< HEAD
-=======
-        logger.info("=" * 60)
->>>>>>> 3cb3798 (Data loading - normal and alzheimer)
 
         return 0
 
