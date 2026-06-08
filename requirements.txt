@@ -5,6 +5,7 @@ pytest
 rdkit
 torch
 torch-geometric
+mlflow
 
 # LLM related dependencies
 langgraph

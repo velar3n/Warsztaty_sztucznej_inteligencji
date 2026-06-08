@@ -19,160 +19,119 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# Initialize fingerprint generator (radius=2, 2048 bits) - internet sais it's a solid default :>
-mfp_gen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+PHYSCHEM_COLS = ["mw_freebase", "alogp", "hba", "hbd", "psa", "rtb", "aromatic_rings", "qed_weighted"]
+MORGAN_RADIUS = 2
+MORGAN_NBITS  = 2048
+PIC50_COL     = "pic50"
+
+mfp_gen = rdFingerprintGenerator.GetMorganGenerator(radius=MORGAN_RADIUS, fpSize=MORGAN_NBITS)
 
 
 def find_latest_source_file(data_dir: Path) -> Path:
-    pattern = "chembl_joined_*.parquet"
+    pattern = "chembl_joined_2147_*.parquet"
     files = sorted(data_dir.glob(pattern), reverse=True)
     if not files:
         raise FileNotFoundError(f"No {pattern} found in {data_dir}")
     return files[0]
 
 
-# We can't feed strings to the model, makes no sense, so we transform the SMILES into numerical vectors (fingerprints)
 def smiles_to_fingerprint(smiles: str) -> np.ndarray | None:
-    if not smiles:
-        return None
-
-    # SMILES -> RDKit molecule -> Fingerprint -> np array for smarter saving
     try:
         mol = Chem.MolFromSmiles(smiles)
         if mol is None:
             return None
-
-        fp = mfp_gen.GetFingerprintAsNumPy(mol)
-        return fp.astype(np.float32)
+        return mfp_gen.GetFingerprintAsNumPy(mol).astype(np.float32)
     except Exception:
         return None
 
 
-def process_chunk(chunk: pd.DataFrame) -> tuple[pd.DataFrame, int]:
-    results = []
-    num_failed = 0
+def load_and_prepare(source_path: Path) -> pd.DataFrame:
+    required_cols = ["activity_id", "canonical_smiles", PIC50_COL, "has_validity_comment"] + PHYSCHEM_COLS
 
-    for _, row in chunk.iterrows():
-        fp = smiles_to_fingerprint(row['canonical_smiles'])
+    chunks       = []
+    total_rows   = 0
+    total_failed = 0
 
-        if fp is None:
-            num_failed += 1
-            continue
+    for batch in pq.ParquetFile(source_path).iter_batches(batch_size=10_000, columns=required_cols):
+        chunk = batch.to_pandas()
 
-        results.append({
-            'activity_id': row['activity_id'],
-            'fingerprint': fp,
-            'pic50': row['pic50']
+        # Drop missing targets / SMILES / flagged rows
+        chunk = chunk.dropna(subset=["canonical_smiles", PIC50_COL])
+        chunk = chunk[chunk[PIC50_COL].between(3, 12)].reset_index(drop=True)
+
+        total_rows += len(chunk)
+
+        # Compute fingerprints
+        fingerprints = chunk["canonical_smiles"].apply(smiles_to_fingerprint)
+        valid_mask   = fingerprints.notna()
+        total_failed += (~valid_mask).sum()
+
+        chunk        = chunk[valid_mask].copy()
+        fingerprints = np.vstack(fingerprints[valid_mask].values)  # (n, 2048)
+
+        # Concatenate fingerprint + physchem into a single feature vector per row
+        physchem = chunk[PHYSCHEM_COLS].fillna(chunk[PHYSCHEM_COLS].median()).values.astype(np.float32)
+        features = np.concatenate([fingerprints, physchem], axis=1)  # (n, 2056)
+
+        result = pd.DataFrame({
+            "activity_id": chunk["activity_id"].values,
+            PIC50_COL:     chunk[PIC50_COL].values.astype(np.float32),
+            "features":    list(features),
         })
+        chunks.append(result)
 
-    return pd.DataFrame(results), num_failed
+    df = pd.concat(chunks, ignore_index=True)
+    logger.info(f"Processed {total_rows:,} rows → {len(df):,} valid ({total_failed} failed fingerprints)")
+    return df
 
 
-def main():
-    start_time = time.time()
-
-    # Setup paths
+def main() -> int:
+    start_time   = time.time()
     project_root = Path(__file__).parent.parent
-    data_dir = project_root / "data"
+    data_dir     = project_root / "data"
+    timestamp    = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     logger.info("Starting MLP data preparation...")
 
     try:
-        # Find source file
         source_path = find_latest_source_file(data_dir)
-        logger.info(f"Source file: {source_path}")
+        logger.info(f"Source: {source_path}")
 
-        # Process data in chunks
-        batch_chunks = []  # Accumulator for current batch
-        total_records = 0
-        total_rows = 0
-        total_failed = 0
-        chunk_num = 0
-        batch_num = 0
-        output_files = []
+        df = load_and_prepare(source_path)
 
-        chunksize = 100_000
-        chunks_per_save = 10  # Save every 1M rows
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Save as two arrays — features matrix and targets vector
+        # NOTE: physchem features are NOT scaled here intentionally.
+        #       Scale AFTER splitting to avoid leakage (fit scaler on train only).
+        X = np.vstack(df["features"].values)              # (n, 2056)
+        y = df[PIC50_COL].values.astype(np.float32)       # (n,)
+        ids = df["activity_id"].values                     # (n,)  — useful for debugging
 
-        logger.info(f"Processing in chunks of {chunksize:,} rows...")
-        logger.info(f"Saving to parquet every {chunks_per_save * chunksize:,} rows...")
+        output_dir = data_dir
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Use PyArrow ParquetFile for chunked reading
-        parquet_file = pq.ParquetFile(source_path)
+        output_path = output_dir / f"mlp_prepared_2147_{timestamp}.parquet"
+        temp_path   = output_dir / "mlp_prepared.tmp.parquet"
 
-        for batch in parquet_file.iter_batches(batch_size=chunksize, columns=['activity_id', 'canonical_smiles', 'pic50']):
-            # Convert to pandas DataFrame
-            chunk = batch.to_pandas()
+        df_out = pd.DataFrame({
+            "activity_id": ids,
+            "pic50":       y,
+            "features":    list(X),   # stored as list of arrays — loads back cleanly
+        })
 
-            # Filter nulls
-            chunk = chunk.dropna(subset=['canonical_smiles', 'pic50'])
-
-            chunk_num += 1
-            total_rows += len(chunk)
-
-            # Transform chunk
-            transformed_chunk, num_failed = process_chunk(chunk)
-            batch_chunks.append(transformed_chunk)
-            total_failed += num_failed
-
-            # Save every 10 chunks (1M rows)
-            if chunk_num % chunks_per_save == 0 and batch_chunks:
-                batch_num += 1
-                batch_df = pd.concat(batch_chunks, ignore_index=True)
-
-                output_filename = f"mlp_features_{timestamp}_part{batch_num:04d}.parquet"
-                output_path = data_dir / output_filename
-                temp_path = output_path.with_suffix('.tmp')
-
-                logger.info(f"Saving batch {batch_num}: {len(batch_df):,} records to {output_filename}...")
-                batch_df.to_parquet(temp_path, engine='pyarrow', index=False)
-                temp_path.rename(output_path)
-
-                output_files.append(output_path)
-                total_records += len(batch_df)
-                batch_chunks = []  # Reset accumulator
-
-            # Progress logging every 1M rows
-            if total_rows % 1_000_000 < chunksize:
-                logger.info(f"Processed {total_rows:,} rows ({chunk_num} chunks), {total_failed:,} failures so far")
-
-        # Save remaining chunks if any
-        if batch_chunks:
-            batch_num += 1
-            batch_df = pd.concat(batch_chunks, ignore_index=True)
-
-            output_filename = f"mlp_features_{timestamp}_part{batch_num:04d}.parquet"
-            output_path = data_dir / output_filename
-            temp_path = output_path.with_suffix('.tmp')
-
-            logger.info(f"Saving final batch {batch_num}: {len(batch_df):,} records to {output_filename}...")
-            batch_df.to_parquet(temp_path, engine='pyarrow', index=False)
-            temp_path.rename(output_path)
-
-            output_files.append(output_path)
-            total_records += len(batch_df)
-
-        # Summary statistics
-        elapsed_time = time.time() - start_time
-        total_size_gb = sum(f.stat().st_size for f in output_files) / (1024**3)
+        df_out.to_parquet(temp_path, engine="pyarrow", index=False)
+        temp_path.rename(output_path)
 
         logger.info("=" * 60)
-        logger.info("MLP Data Preparation Complete")
-        logger.info(f"Total rows processed: {total_rows:,}")
-        logger.info(f"Successful transformations: {total_records:,}")
-        logger.info(f"Failed transformations: {total_failed:,}")
-        logger.info(f"Success rate: {total_records/total_rows*100:.2f}%")
-        logger.info(f"Number of output files: {len(output_files)}")
-        logger.info(f"Output files: {', '.join(f.name for f in output_files)}")
-        logger.info(f"Total output size: {total_size_gb:.2f} GB")
-        logger.info(f"Elapsed time: {elapsed_time/60:.2f} minutes")
+        logger.info(f"X shape : {X.shape}  (2048 Morgan + 8 physchem)")
+        logger.info(f"y shape : {y.shape}")
+        logger.info(f"Output  : {output_dir}")
+        logger.info(f"Elapsed : {time.time() - start_time:.1f}s")
         logger.info("=" * 60)
 
         return 0
 
     except Exception as e:
-        logger.error(f"Fatal error: {e}")
+        logger.error(f"Fatal error: {e}", exc_info=True)
         return 1
 
 

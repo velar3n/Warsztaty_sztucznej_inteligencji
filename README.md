@@ -25,3 +25,28 @@ Budowa systemu typu MVP, który przewiduje aktywność biologiczną związków c
 
 ## Deadline: 
 13. czerwca 2026
+
+## Wyniki Baseline test na małej grupie pierwszysz 100k próbek
+### Baza (3 warstwy, 0.0003 lr, 0.1 dropout, 100 max epok)
+
+
+| Model | Split Type | Loss | R² (Val) | R² (Test) | MSE (Val) | Epochs Trained | Best Epoch |
+|---|---|---|---:|---:|---:|---:|---:|
+| MLP | Random | MSE | 0.6474 | 0.6558 | 0.8548 | 19 | 7 |
+| MLP | Scaffold | MSE | 0.4785 | 0.3897 | 1.2691 | 32 | 20 |
+| GNN | Random | MSE | 0.1694 | 0.4194 | 2.0138 | 100 | 99 |
+| GNN | Scaffold | MSE | 0.3221 | 0.3050 | 1.6495 | 47 | 35 |
+
+
+## LLM setting
+
+1. Interfejs:
+- chat? bardziej a la wyszukiwarka? czy coś podobneo? Użytkownik musi być w stanie zadać pytanie i otrzxymać jakąś najs odpowiedź, ale czy zakładamy tez dopytywanie czy formę 1 pytanie --> 1 odpowiedź i brak potrzeby zapamiętywania historii?
+
+Architektura:
+Zapytanie jako SMILES -> ekstrakcja SMILES z zapytania jeśli pytanie w formie tekstowej (LLM) -> agent wywołuje model, czyli przekazanie SMILES do modelu -> wyciąga cechy z wyniku -> ładna odpowieź z potrzebnymi cechami -> zwracamy na front -> tworzy wizualizacje
+
+Model:
+- popatrzeć na huggin face
+- ogólnie open source
+- może coś trenowanego na danych typu tych co są w chembl (chemiczne/biomolekularne)

@@ -208,7 +208,7 @@ def process_chunk(chunk: pd.DataFrame) -> tuple[list[Data], int]:
 
 
 def find_latest_source_file(data_dir: Path) -> Path:
-    pattern = "chembl_joined_*.parquet"
+    pattern = "chembl_joined_2147_*.parquet"
     files = sorted(data_dir.glob(pattern), reverse=True)
     if not files:
         raise FileNotFoundError(f"No {pattern} found in {data_dir}")
