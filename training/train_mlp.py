@@ -405,7 +405,7 @@ class MLPTrainer:
 if __name__ == "__main__":
     # Paths
     DATA_DIR = Path(__file__).parent.parent / 'data'
-    SPLIT_DIR = DATA_DIR / 'splits_experiment'
+    SPLIT_DIR = DATA_DIR / 'splits'
     MODELS_DIR = Path(__file__).parent.parent / 'models'
 
     # Best MLP configuration

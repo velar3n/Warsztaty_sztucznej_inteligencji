@@ -1,0 +1,10 @@
+mlflow==3.13.0
+cloudpickle==3.1.2
+defusedxml==0.7.1
+dill==0.4.1
+numpy==1.26.4
+pandas==2.3.3
+torch-geometric==2.7.0
+torch==2.5.1
+transformers==4.49.0
+zstandard==0.25.0
