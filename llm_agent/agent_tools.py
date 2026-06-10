@@ -6,6 +6,17 @@ from langchain_core.tools import tool
 
 logger = logging.getLogger(__name__)
 
+# Global references to predictors (set by app.py on startup)
+_mlp_predictor = None
+_gnn_predictor = None
+
+def set_predictors(mlp, gnn):
+    """Set the global predictor instances (called from app.py)."""
+    global _mlp_predictor, _gnn_predictor
+    _mlp_predictor = mlp
+    _gnn_predictor = gnn
+    logger.info("Predictors configured for agent tools")
+
 
 @tool
 def validate_smiles(smiles: str) -> dict:
@@ -44,34 +55,76 @@ def predict_pic50(smiles: str) -> dict:
     Call this tool ONLY after validate_smiles confirms the SMILES is valid.
     Always call this tool if the SMILE is valid. Do NOT skip this step, as the pIC50 value is essential for the agent's response.
 
-
     Args:
         smiles: A valid (canonical) SMILES string.
 
     Returns:
         A dict with keys:
             - smiles (str): The input SMILES.
-            - pic50 (float): Predicted pIC50 value.
-            - activity_label (str): Human-readable activity class.
+            - mlp_pic50 (float): MLP model prediction.
+            - gnn_pic50 (float): GNN model prediction.
+            - average_pic50 (float): Average of both predictions.
+            - activity_label (str): Human-readable activity class based on average.
     """
     logger.info(f"[TOOL]: Predicting pIC50 for SMILES: {smiles}")
 
-    # TODO: replace the hardcoded value with real model inference, e.g.:
-    
-    prediction = 0.75
+    if _mlp_predictor is None or _gnn_predictor is None:
+        logger.error("Predictors not initialized")
+        return {
+            "smiles": smiles,
+            "mlp_pic50": None,
+            "gnn_pic50": None,
+            "average_pic50": None,
+            "activity_label": "Error: Models not loaded",
+            "error": "Predictors not initialized",
+        }
 
-    if prediction >= 6.0:
-        label = "Active"
-    elif prediction >= 5.0:
-        label = "Moderately active"
-    else:
-        label = "Inactive"
+    try:
+        # Run predictions with both models
+        mlp_pred = _mlp_predictor.predict(smiles)
+        gnn_pred = _gnn_predictor.predict(smiles)
 
-    return {
-        "smiles": smiles,
-        "pic50": prediction,
-        "activity_label": label,
-    }
+        if mlp_pred is None or gnn_pred is None:
+            return {
+                "smiles": smiles,
+                "mlp_pic50": mlp_pred,
+                "gnn_pic50": gnn_pred,
+                "average_pic50": None,
+                "activity_label": "Error: Prediction failed",
+                "error": "One or both models failed to predict",
+            }
+
+        # Average the predictions
+        avg_pred = (mlp_pred + gnn_pred) / 2.0
+
+        # Classify activity
+        if avg_pred >= 6.0:
+            label = "Active"
+        elif avg_pred >= 5.0:
+            label = "Moderately active"
+        else:
+            label = "Inactive"
+
+        logger.info(f"MLP: {mlp_pred:.3f}, GNN: {gnn_pred:.3f}, Average: {avg_pred:.3f}")
+
+        return {
+            "smiles": smiles,
+            "mlp_pic50": round(mlp_pred, 3),
+            "gnn_pic50": round(gnn_pred, 3),
+            "average_pic50": round(avg_pred, 3),
+            "activity_label": label,
+        }
+
+    except Exception as exc:
+        logger.error(f"Prediction error: {exc}")
+        return {
+            "smiles": smiles,
+            "mlp_pic50": None,
+            "gnn_pic50": None,
+            "average_pic50": None,
+            "activity_label": "Error",
+            "error": str(exc),
+        }
 
 
 @tool

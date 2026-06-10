@@ -3,6 +3,7 @@ import sys
 import os
 import uuid
 import logging
+from pathlib import Path
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
@@ -10,6 +11,8 @@ if _HERE not in sys.path:
 
 import streamlit as st
 from graph import run_agent
+from mlp_predictor import MLPPredictor
+from gnn_predictor import GNNPredictor
 
 logging.basicConfig(
     level=logging.INFO,
@@ -36,11 +39,24 @@ if "messages" not in st.session_state:
     st.session_state.messages = []  # list of {role, content, image_b64}
 
 
-@st.cache_resource(show_spinner="Loading Agent…")
-def load_agent():
+@st.cache_resource(show_spinner="Loading models and agent...")
+def load_models_and_agent():
+    """Initialize MLP and GNN predictors, configure agent tools, then load agent."""
+    from agent_tools import set_predictors
+
+    models_dir = Path(_HERE).parent / 'models'
+    logger.info(f"Loading models from: {models_dir}")
+
+    mlp = MLPPredictor(model_dir=str(models_dir))
+    gnn = GNNPredictor(model_dir=str(models_dir))
+
+    # Configure predictors for agent tools before building the agent
+    set_predictors(mlp, gnn)
+
+    logger.info("Models loaded and configured for agent tools")
     return run_agent
 
-_run_agent = load_agent()
+_run_agent = load_models_and_agent()
 
 # Sidebar
 with st.sidebar:
