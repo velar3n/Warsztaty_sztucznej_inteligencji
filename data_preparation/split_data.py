@@ -210,7 +210,7 @@ if __name__ == "__main__":
     DATA_DIR = Path(__file__).parent.parent / 'data'
     MLP_PARQUET = DATA_DIR / 'mlp_features_2147_mlp.parquet'
     GNN_PT = DATA_DIR / 'gnn_graphs_2147_gnn.pt'
-    SPLIT_DIR = DATA_DIR / 'splits_experiment'
+    SPLIT_DIR = DATA_DIR / 'splits'
 
     # Run splitting
     splitter = ScaffoldSplitter(

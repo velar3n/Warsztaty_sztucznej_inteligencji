@@ -84,7 +84,7 @@ airflow/logs/*
 
 inspire/*
 .*/
-data/*
+data/old/*
 
 #Pycharm
 .idea/
