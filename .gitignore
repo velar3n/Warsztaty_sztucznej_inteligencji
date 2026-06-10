@@ -85,3 +85,6 @@ airflow/logs/*
 inspire/*
 .*/
 data/*
+
+#Pycharm
+.idea/
