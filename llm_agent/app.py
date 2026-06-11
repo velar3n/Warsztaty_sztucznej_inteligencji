@@ -72,10 +72,11 @@ with st.sidebar:
     st.header("Info")
     st.markdown("""
     **SMILES Format Examples**:
-    - Ethanol: `CCO`
-    - Benzine: `c1ccccc1`
-    - Caffeine: `Cn1cnc2c1c(=O)n(C)c(=O)n2C`
-    - Ibuprofen: `CC(C)Cc1ccc(cc1)C(C)C(=O)O`
+    - Harmane: `Cc1nccc2c1[nH]c1ccccc12`
+    - Harmaline: `COc1ccc2c3c([nH]c2c1)C(C)=NCC3`
+    - Quercetagetin: `O=c1c(O)c(-c2ccc(O)c(O)c2)oc2cc(O)c(O)c(O)c12`
+    - Bisindolylmaleimide VIII acetate: `Cn1cc(C2=C(c3cn(CCCN)c4ccccc34)C(=O)NC2=O)c2ccccc21`
+    - 1H-Indazol-3-amine: `Nc1[nH]nc2ccccc12`
                 
     **Usage**:
     - Enter a SMILES string to predict its activity and visualize its structure.
