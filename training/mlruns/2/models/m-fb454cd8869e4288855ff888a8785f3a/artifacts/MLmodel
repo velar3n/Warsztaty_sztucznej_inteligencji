@@ -1,0 +1,23 @@
+artifact_path: /Users/natalia/Documents/Studia/Warsztaty_sztucznej_inteligencji/Warsztaty_sztucznej_inteligencji/training/mlruns/2/models/m-fb454cd8869e4288855ff888a8785f3a/artifacts
+flavors:
+  python_function:
+    config:
+      device: null
+    data: data
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.pytorch
+    pickle_module_name: mlflow.pytorch.pickle_module
+    python_version: 3.14.5
+  pytorch:
+    code: null
+    model_data: data
+    pytorch_version: 2.12.0
+mlflow_version: 3.13.0
+model_id: m-fb454cd8869e4288855ff888a8785f3a
+model_size_bytes: 25371163
+model_uuid: m-fb454cd8869e4288855ff888a8785f3a
+prompts: null
+run_id: 5dccdc37ba3c4db4bab45178d5cbfc2e
+utc_time_created: '2026-06-11 17:27:35.367846'

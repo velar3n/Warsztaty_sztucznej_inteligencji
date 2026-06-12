@@ -15,6 +15,8 @@ import pickle
 import numpy as np
 import torch
 from torch import nn
+import numpy as np
+import torch.serialization
 
 from rdkit import Chem, DataStructs
 from rdkit.Chem import Descriptors, rdMolDescriptors, rdFingerprintGenerator
@@ -99,7 +101,7 @@ class MLPPredictor:
             raise FileNotFoundError(f"Model checkpoint not found: {ckpt_path}")
 
         logger.info(f"Loading model from: {ckpt_path}")
-        ckpt = torch.load(ckpt_path, map_location=self.device)
+        ckpt = torch.load(ckpt_path, map_location=self.device, weights_only=False)
 
         # Build model with saved architecture
         arch = ckpt['arch']

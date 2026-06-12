@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
+import torch.serialization
 
 from rdkit import Chem
 from rdkit.Chem import Descriptors, rdMolDescriptors, rdPartialCharges
@@ -230,8 +231,7 @@ class GNNPredictor:
         if not ckpt_path.exists():
             raise FileNotFoundError(f"Model checkpoint not found: {ckpt_path}")
 
-        logger.info(f"Loading model from: {ckpt_path}")
-        ckpt = torch.load(ckpt_path, map_location=self.device)
+        ckpt = torch.load(ckpt_path, map_location=self.device, weights_only=False)
 
         # Build model with saved architecture
         arch = ckpt['arch']
