@@ -174,7 +174,86 @@ def visualize_structure(smiles: str) -> dict:
 
     except Exception as exc:
         return {"success": False, "image_b64": None, "error": str(exc)}
-
-
+    
+@tool
+def calculate_molecular_properties(smiles: str) -> dict:
+    """
+    Calculate basic physicochemical descriptors for a SMILES string using RDKit:
+    - molecular weight, 
+    - LogP (lipophilicity)
+    - topological polar surface area (TPSA)
+    - number of hydrogen bond donors
+    - number of hydrogen bond acceptors
+    Call this tool ONLY after validate_smiles confirms the SMILES is valid.
+ 
+    Args:
+        smiles: A valid (canonical) SMILES string.
+ 
+    Returns:
+        A dict with keys:
+            - success (bool): Whether the calculation succeeded.
+            - smiles (str): The input SMILES.
+            - molecular_weight (float | None): Molecular weight in g/mol.
+            - logp (float | None): Calculated LogP (Crippen).
+            - tpsa (float | None): Topological polar surface area (Å²).
+            - num_h_donors (int | None): Number of hydrogen bond donors.
+            - num_h_acceptors (int | None): Number of hydrogen bond acceptors.
+            - error (str | None): Error message if calculation failed.
+    """
+    logger.info(f"[TOOL]: Calculating molecular properties for SMILES: {smiles}")
+ 
+    try:
+        from rdkit import Chem
+        from rdkit.Chem import Descriptors, Crippen, Lipinski
+ 
+        mol = Chem.MolFromSmiles(smiles.strip())
+        if mol is None:
+            return {
+                "success": False,
+                "smiles": smiles,
+                "molecular_weight": None,
+                "logp": None,
+                "tpsa": None,
+                "num_h_donors": None,
+                "num_h_acceptors": None,
+                "error": "Invalid SMILES – cannot calculate properties.",
+            }
+ 
+        mol_weight = Descriptors.MolWt(mol)
+        logp = Crippen.MolLogP(mol)
+        tpsa = Descriptors.TPSA(mol)
+        h_donors = Lipinski.NumHDonors(mol)
+        h_acceptors = Lipinski.NumHAcceptors(mol)
+ 
+        logger.info(
+            f"MW: {mol_weight:.3f}, LogP: {logp:.3f}, TPSA: {tpsa:.3f}, "
+            f"HBD: {h_donors}, HBA: {h_acceptors}"
+        )
+ 
+        return {
+            "success": True,
+            "smiles": smiles,
+            "molecular_weight": round(mol_weight, 3),
+            "logp": round(logp, 3),
+            "tpsa": round(tpsa, 3),
+            "num_h_donors": h_donors,
+            "num_h_acceptors": h_acceptors,
+            "error": None,
+        }
+ 
+    except Exception as exc:
+        logger.error(f"Property calculation error: {exc}")
+        return {
+            "success": False,
+            "smiles": smiles,
+            "molecular_weight": None,
+            "logp": None,
+            "tpsa": None,
+            "num_h_donors": None,
+            "num_h_acceptors": None,
+            "error": str(exc),
+        }
+ 
+ 
 # Export tools for agent registration
-TOOLS = [validate_smiles, predict_pic50, visualize_structure]
+TOOLS = [validate_smiles, predict_pic50, visualize_structure, calculate_molecular_properties]

@@ -66,7 +66,7 @@ with st.sidebar:
     if st.button("Start new conversation", use_container_width=True):
         st.session_state.thread_id = str(uuid.uuid4())
         st.session_state.messages = []
-        st._rerun()
+        st.rerun()
 
     st.divider()
     st.header("Info")

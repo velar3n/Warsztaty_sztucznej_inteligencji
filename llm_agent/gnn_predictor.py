@@ -402,10 +402,7 @@ if __name__ == "__main__":
         "INVALID_SMILES",  # Should return None
     ]
 
-    logger.info("\n" + "=" * 60)
     logger.info("Testing GNN predictions:")
-    logger.info("=" * 60)
-
     for smi in test_smiles:
         pred = predictor.predict(smi)
         if pred is not None:
@@ -414,4 +411,3 @@ if __name__ == "__main__":
         else:
             logger.info(f"SMILES: {smi}")
             logger.info(f"Predicted pIC50: INVALID")
-        logger.info("-" * 60)

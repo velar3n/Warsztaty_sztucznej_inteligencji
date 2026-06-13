@@ -1,12 +1,3 @@
-"""
-MLP Predictor for pIC50 prediction from SMILES.
-
-This class:
-1. Loads a trained MLP model from checkpoint
-2. Loads the StandardScaler for physicochemical features
-3. Provides a predict() method that takes SMILES and returns pIC50
-"""
-
 import logging
 from pathlib import Path
 import json
@@ -269,10 +260,7 @@ if __name__ == "__main__":
         "INVALID_SMILES",  # Should return None
     ]
 
-    logger.info("\n" + "=" * 60)
     logger.info("Testing MLP predictions:")
-    logger.info("=" * 60)
-
     for smi in test_smiles:
         pred = predictor.predict(smi)
         if pred is not None:
@@ -281,4 +269,3 @@ if __name__ == "__main__":
         else:
             logger.info(f"SMILES: {smi}")
             logger.info(f"Predicted pIC50: INVALID")
-        logger.info("-" * 60)
